@@ -38,3 +38,14 @@ can you summarise my total expense from Aug 5th to aug 30th
 
 
 NOTE: We will add categories.json to force the schema of categories to clade to make sure it should pic the categories from that list , instead of adding some random categories
+
+
+II)We have added the FastAPI 
+
+
+
+III)Converting FastAPI application to an MCP Server using Server.py
+
+
+
+
