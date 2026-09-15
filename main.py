@@ -3,6 +3,7 @@ import os
 import sqlite3
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "expenses.db")
+CATEGORIES_PATH = os.path.join(os.path.dirname(__file__), "categories.json")
 
 mcp = FastMCP("ExpenseTracker")
 
@@ -90,6 +91,13 @@ def summarize_expenses(start_date=None, end_date=None):
             "total_entries": total_count,
             "by_category": by_category
         }
+
+
+@mcp.resource("expense://categories", mime_type="application/json")
+def categories():
+    # Read fresh each time so you can edit the file without restarting
+    with open(CATEGORIES_PATH, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 if __name__ == "__main__":

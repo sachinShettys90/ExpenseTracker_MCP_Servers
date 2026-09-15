@@ -35,3 +35,6 @@ can you summarise my total expense from Aug 5th to aug 30th
 | Travel            | ₹1,720   | 2       |
 | Utilities         | ₹1,398   | 2       |
 | Entertainment     | ₹800     | 1       |
+
+
+NOTE: We will add categories.json to force the schema of categories to clade to make sure it should pic the categories from that list , instead of adding some random categories
