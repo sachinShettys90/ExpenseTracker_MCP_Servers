@@ -1,4 +1,4 @@
-## ExpenseTracketr MCP Server
+## I-ExpenseTracketr MCP Server
 
 
 uv run fastmcp dev inspector main.py -----To run in the Inspector of MCP server 
@@ -40,12 +40,27 @@ can you summarise my total expense from Aug 5th to aug 30th
 NOTE: We will add categories.json to force the schema of categories to clade to make sure it should pic the categories from that list , instead of adding some random categories
 
 
-II)We have added the FastAPI 
+# II-We have added the FastAPI 
+uv run uvicorn ExpenseTracker_with_FastAPI:app --reload   -->TO run the FastAPI application
+
+Expense Tracker API METHODS
+
+GET     /expenses
+POST    /expenses
+PUT     /expenses/{id}
+DELETE  /expenses/{id}
+
+POST    /credits
+
+GET     /expenses/summary
+
+POST    /budgets
+GET     /budgets/{month}
 
 
 
-III)Converting FastAPI application to an MCP Server using Server.py
-
+# III - Converting FastAPI application to an MCP Server using Server.py
+uv run fastmcp dev inspector server.py  ---->To run the FastAPI app in MCP server 
 
 
 
