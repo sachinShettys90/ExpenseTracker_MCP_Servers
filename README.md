@@ -1,13 +1,57 @@
 # Smart Personal Finance API
-Deployed in FastMCP.cloud platform 
-URL for my expense tracker cloud server : https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp
+
+An MCP server that lets you track expenses, budgets, and income directly through natural-language chat with Claude (or any MCP-compatible client) — no spreadsheet required.
+
+**🚀 Live server (hosted on FastMCP Cloud):**
+```
+https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp
+```
+
+---
+
+## Try it yourself
+
+You don't need to run anything locally — connect straight to the hosted server above.
+
+### Claude Desktop / Claude.ai (Custom Connector)
+
+1. Go to **Settings → Connectors → Add custom connector**.
+2. Paste in the server URL:
+   ```
+   https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp
+   ```
+3. Save, then start a new chat and try one of the example prompts below.
+
+### Any other MCP client (Cursor, Windsurf, etc.)
+
+Add it as a remote MCP server using the same URL:
+```json
+{
+  "mcpServers": {
+    "expense-tracker": {
+      "url": "https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp"
+    }
+  }
+}
+```
+
+### MCP Inspector (for exploring tools/schemas)
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+Then connect to `https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp` as a remote server.
+
+> **Note:** The hosted server uses temporary storage, so data may reset periodically — it's meant for demoing the tools, not as your permanent ledger. Run it locally (see below) if you want persistent data.
+
+---
 
 ## I. ExpenseTracker MCP Server
 
-Run the server in different modes:
+Run the server locally in different modes:
 
 ```bash
-uv run fastmcp dev inspector main.py     # Run in the MCP Inspector (for interactive testing)
+uv run fastmcp dev inspector main.py            # Run in the MCP Inspector (for interactive testing)
 uv run fastmcp install claude-desktop main.py   # Install as a local MCP server for Claude Desktop
 ```
 
