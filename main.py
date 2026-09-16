@@ -1,11 +1,18 @@
 from fastmcp import FastMCP
 import os
 import sqlite3
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "expenses.db")
-CATEGORIES_PATH = os.path.join(os.path.dirname(__file__), "categories.json")
+import tempfile
 
 mcp = FastMCP("ExpenseTracker")
+
+# Writable location: defaults to the OS temp dir (works on FastMCP Cloud's
+# read-only/ephemeral container filesystem). Override with an env var if you
+# later attach persistent storage.
+DATA_DIR = os.environ.get("EXPENSE_TRACKER_DATA_DIR", tempfile.gettempdir())
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DATA_DIR, "expenses.db")
+CATEGORIES_PATH = os.path.join(os.path.dirname(__file__), "categories.json")
 
 
 def init_db():
@@ -36,6 +43,12 @@ def init_db():
             PRIMARY KEY (category, month)
             )
         """)
+
+
+# FastMCP Cloud doesn't run the __main__ block, so initialize the DB
+# at import time instead — this guarantees the tables exist before any
+# tool is called, regardless of how the server is launched.
+init_db()
 
 
 @mcp.tool()
@@ -201,5 +214,4 @@ def get_budget_status(month):
 
 
 if __name__ == "__main__":
-    init_db()
-    mcp.run()
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
