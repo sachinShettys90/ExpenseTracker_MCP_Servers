@@ -1,3 +1,6 @@
+###### Smart Personal Finance API #####
+
+
 ## I-ExpenseTracketr MCP Server
 
 
@@ -37,7 +40,39 @@ can you summarise my total expense from Aug 5th to aug 30th
 | Entertainment     | ₹800     | 1       |
 
 
+# Edit an expense
+
+Change my food expense from Sep 23 to Rs 900
+Output: Done — the Sep 23 Food expense ("Dinner date") is updated from ₹1,800 to ₹900.
+
+# Credit expense
+I received a mutual fund payout of Rs 5000 on Sep 20, add as credit
+Output: Added — ₹5,000 credit on Sep 20, categorized as Investment, note "Mutual fund payout" (entry id 36).
+
+
+# Budgets
+
+Q1: Set my budget for food this month to Rs 8000
+Output: Set — Food budget for September 2026 is now ₹8,000.
+
+Q2: what's the current expense for september month in food category
+Output: 
+You've spent ₹1,440 on Food this September — well under your ₹8,000 budget, with ₹6,560 remaining.
+
+Q3: How am I doing against my budget for September?
+Output : That's the only budget you've set so far — Food — so here's the full picture:
+
+Food — September 2026
+
+Budget: ₹8,000
+Spent: ₹1,440
+Remaining: ₹6,560
+Status: well under budget ✅
+
+
+
 NOTE: We will add categories.json to force the schema of categories to clade to make sure it should pic the categories from that list , instead of adding some random categories
+
 
 
 # II-We have added the FastAPI 
@@ -61,6 +96,8 @@ GET     /budgets/{month}
 
 # III - Converting FastAPI application to an MCP Server using Server.py
 uv run fastmcp dev inspector server.py  ---->To run the FastAPI app in MCP server 
+
+
 
 
 
