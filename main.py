@@ -1,4 +1,5 @@
 from fastmcp import FastMCP
+from typing import Optional
 import os
 import sqlite3
 import tempfile
@@ -52,7 +53,7 @@ init_db()
 
 
 @mcp.tool()
-def add_expense(date, amount, category, subcategory="", note=""):
+def add_expense(date: str, amount: float, category: str, subcategory: str = "", note: str = "") -> dict:
     '''Add a new expense (debit) entry to the database.'''
     with sqlite3.connect(DB_PATH) as c:
         cur = c.execute(
@@ -63,7 +64,7 @@ def add_expense(date, amount, category, subcategory="", note=""):
 
 
 @mcp.tool()
-def list_expenses(start_date, end_date):
+def list_expenses(start_date: str, end_date: str) -> list[dict]:
     '''List expense entries within an inclusive date range.'''
     with sqlite3.connect(DB_PATH) as c:
         cur = c.execute(
@@ -80,7 +81,7 @@ def list_expenses(start_date, end_date):
 
 
 @mcp.tool()
-def summarize_expenses(start_date=None, end_date=None):
+def summarize_expenses(start_date: Optional[str] = None, end_date: Optional[str] = None) -> dict:
     '''Summarize expenses (debits only) by category, optionally within a date range.'''
     with sqlite3.connect(DB_PATH) as c:
         base_query = """
@@ -120,7 +121,14 @@ def categories():
 # EDIT Expense tool
 
 @mcp.tool()
-def edit_expense(id, date=None, amount=None, category=None, subcategory=None, note=None):
+def edit_expense(
+    id: int,
+    date: Optional[str] = None,
+    amount: Optional[float] = None,
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    note: Optional[str] = None,
+) -> dict:
     '''Edit an existing expense entry. Only the fields provided are updated;
     omitted fields keep their current value.'''
     fields, values = [], []
@@ -143,7 +151,7 @@ def edit_expense(id, date=None, amount=None, category=None, subcategory=None, no
 
 # Delete expense tool
 @mcp.tool()
-def delete_expense(id):
+def delete_expense(id: int) -> dict:
     '''Delete an expense entry by its id.'''
     with sqlite3.connect(DB_PATH) as c:
         cur = c.execute("DELETE FROM expenses WHERE id = ?", (id,))
@@ -155,7 +163,7 @@ def delete_expense(id):
 # credit expense tool--to add the credit
 
 @mcp.tool()
-def credit_expense(date, amount, category="Income", subcategory="", note=""):
+def credit_expense(date: str, amount: float, category: str = "Income", subcategory: str = "", note: str = "") -> dict:
     '''Record a credit (income, refund, etc.) rather than a spend.
     Stored in the same table but tagged as type='credit'.'''
     with sqlite3.connect(DB_PATH) as c:
@@ -167,7 +175,7 @@ def credit_expense(date, amount, category="Income", subcategory="", note=""):
 
 
 @mcp.tool()
-def set_budget(category, month, limit_amount):
+def set_budget(category: str, month: str, limit_amount: float) -> dict:
     '''Set (or update) the monthly spending limit for a category.
     month should be in 'YYYY-MM' format, e.g. '2026-09'.'''
     with sqlite3.connect(DB_PATH) as c:
@@ -182,7 +190,7 @@ def set_budget(category, month, limit_amount):
 
 
 @mcp.tool()
-def get_budget_status(month):
+def get_budget_status(month: str) -> list[dict]:
     '''Check spending against budget for each category in a given month ('YYYY-MM').
     Returns limit, actual spend, remaining, and whether it's over budget.'''
     with sqlite3.connect(DB_PATH) as c:
