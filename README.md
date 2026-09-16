@@ -1,4 +1,6 @@
 # Smart Personal Finance API
+Deployed in FastMCP.cloud platform 
+URL for my expense tracker cloud server : https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp
 
 ## I. ExpenseTracker MCP Server
 
