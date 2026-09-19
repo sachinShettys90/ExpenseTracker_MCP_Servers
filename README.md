@@ -7,11 +7,25 @@ An MCP server that lets you track expenses, budgets, and income directly through
 https://expense-tracker-sachin-mcp-serv.fastmcp.app/mcp
 ```
 
+**📂 Source code:** https://github.com/sachinShettys90/ExpenseTracker_MCP_Servers
+
+---
+
+## Tech Stack
+
+- **[FastMCP](https://gofastmcp.com)** (Python) — MCP server framework, tools + resources
+- **Asynchronous end-to-end** — every DB-backed tool is `async def`, using **[aiosqlite](https://github.com/omnilib/aiosqlite)** instead of blocking `sqlite3` calls. This means concurrent tool calls (e.g. multiple users hitting the server at once) don't block each other while a query is running — the event loop stays free to handle other requests in the meantime.
+- **SQLite** — lightweight storage for expenses and budgets
+- **Fixed category taxonomy** — `categories.json` exposed as an MCP resource, so the model classifies every expense against a known schema instead of inventing categories on the fly
+- **Deployed on FastMCP Cloud** — accessible as a remote MCP server over HTTP, with bearer-token authentication
+
 ---
 
 ## Try it yourself
 
 You don't need to run anything locally — connect straight to the hosted server above.
+
+> ⚠️ **Note:** This URL is an MCP protocol endpoint, not a webpage. Opening it directly in a browser will show a `Bearer token required` JSON error — that's expected. You need to connect through an actual MCP client (see below), which handles the protocol handshake and authentication for you.
 
 ### Claude Desktop / Claude.ai (Custom Connector)
 
@@ -53,6 +67,7 @@ Run the server locally in different modes:
 ```bash
 uv run fastmcp dev inspector main.py            # Run in the MCP Inspector (for interactive testing)
 uv run fastmcp install claude-desktop main.py   # Install as a local MCP server for Claude Desktop
+uv run python main.py                           # Run directly as an HTTP server (0.0.0.0:8000)
 ```
 
 > **Note:** When you type expense-related messages in Claude, it will automatically create `expenses.db` (if it doesn't exist) and add data to it.
