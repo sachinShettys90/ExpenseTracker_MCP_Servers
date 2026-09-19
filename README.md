@@ -188,6 +188,38 @@ Status: well under budget ✅
 
 ---
 
+## Engineering Challenges & Solutions
+
+Building and hardening this server surfaced a few real problems that come up when you move a project from "it works on my laptop" to "it works for real, for other people."
+
+### 1. The server kept forgetting data after updates
+
+**Challenge:** When I redeployed the server online, it sometimes lost all the saved expenses. That's because the cloud platform gives each deployment a fresh, temporary storage space — nothing saved there sticks around permanently unless you point it somewhere specifically meant to last.
+
+**Solution:** I made the app save to a proper temporary storage location the platform actually supports, and set it up so I can easily switch to permanent storage later without rewriting the code.
+
+### 2. The tools weren't strict about what data they'd accept
+
+**Challenge:** When I tested the server with a diagnostic tool, it warned me that every single feature (adding an expense, editing one, etc.) would accept literally anything as input — text, numbers, anything — with no rules. That's risky because some apps that talk to this server would get confused by that flexibility.
+
+**Solution:** I clearly stated what type of value each field expects (a number for amount, text for a category, and so on), so each tool now only accepts sensible input.
+
+### 3. The app could freeze up when multiple people used it at once
+
+**Challenge:** Originally, every time the app talked to the database, it would "block" — meaning nothing else could happen until that one request finished. That's fine with one person, but if several people used the app at the same time, everyone would end up waiting in line, even for tiny actions.
+
+**Solution:** I rewrote the database logic to work asynchronously, meaning the app can now handle multiple requests at the same time instead of making everyone wait their turn.
+
+### 4. Everyone's expenses were mixed together
+
+**Challenge:** This was the biggest one. The app had no way of knowing *who* an expense belonged to — so if two different people used the server, their expenses (and even their budgets) would all show up together in one shared list. Even worse, one person could accidentally edit or delete someone else's expense.
+
+**Solution:** I fixed this by having the app recognize *who* is logged in each time someone uses it, and making sure every action — adding, viewing, editing, deleting — only ever touches that person's own data, never anyone else's.
+
+One extra detail worth mentioning: this "who's logged in" check only works when the app is used online through the hosted version, since that's the only place where people actually log in. When running it privately on my own computer, there's no login step at all, so I made sure that mode still works fine on its own, treating it as a single, personal user.
+
+---
+
 ## II. FastAPI Version
 
 ```bash
