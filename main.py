@@ -1,4 +1,5 @@
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_access_token
 from typing import Optional
 import os
 import asyncio
@@ -17,11 +18,27 @@ DB_PATH = os.path.join(DATA_DIR, "expenses.db")
 CATEGORIES_PATH = os.path.join(os.path.dirname(__file__), "categories.json")
 
 
+def current_user_id() -> str:
+    """Identifies the caller so each person's data stays isolated.
+
+    Over HTTP with auth enabled (e.g. FastMCP Cloud), this pulls the
+    identity from the validated bearer token. In STDIO/local mode there's
+    no OAuth handshake at all, so we fall back to a fixed local user --
+    this keeps `fastmcp install claude-desktop main.py` working exactly
+    as it did before, since that's inherently single-user anyway.
+    """
+    token = get_access_token()
+    if token is None:
+        return "local_user"
+    return token.claims.get("email") or token.claims.get("sub") or "unknown_user"
+
+
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as c:
         await c.execute("""
             CREATE TABLE IF NOT EXISTS expenses(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT 'local_user',
             date TEXT NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL,
@@ -31,27 +48,39 @@ async def init_db():
             )
         """)
 
-        # Migrate older databases that don't have the 'type' column yet
+        # Migrate older databases that don't have these columns yet
         cur = await c.execute("PRAGMA table_info(expenses)")
         cols = [row[1] for row in await cur.fetchall()]
         if "type" not in cols:
             await c.execute(
                 "ALTER TABLE expenses ADD COLUMN type TEXT NOT NULL DEFAULT 'debit'")
+        if "user_id" not in cols:
+            await c.execute(
+                "ALTER TABLE expenses ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local_user'")
 
         await c.execute("""
             CREATE TABLE IF NOT EXISTS budgets(
+            user_id TEXT NOT NULL DEFAULT 'local_user',
             category TEXT NOT NULL,
             month TEXT NOT NULL,
             limit_amount REAL NOT NULL,
-            PRIMARY KEY (category, month)
+            PRIMARY KEY (user_id, category, month)
             )
         """)
+
+        # Migrate older budgets tables (previously keyed on category+month only)
+        cur = await c.execute("PRAGMA table_info(budgets)")
+        budget_cols = [row[1] for row in await cur.fetchall()]
+        if "user_id" not in budget_cols:
+            await c.execute(
+                "ALTER TABLE budgets ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local_user'")
+
         await c.commit()
 
 
 def _run_init_db():
     # FastMCP Cloud doesn't run the __main__ block, so initialize the DB
-    # at import time instead — this guarantees the tables exist before any
+    # at import time instead -- this guarantees the tables exist before any
     # tool is called, regardless of how the server is launched.
     try:
         asyncio.run(init_db())
@@ -69,10 +98,11 @@ _run_init_db()
 @mcp.tool()
 async def add_expense(date: str, amount: float, category: str, subcategory: str = "", note: str = "") -> dict:
     '''Add a new expense (debit) entry to the database.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         cur = await c.execute(
-            "INSERT INTO expenses(date, amount, category, subcategory, note, type) VALUES (?,?,?,?,?,?)",
-            (date, amount, category, subcategory, note, "debit")
+            "INSERT INTO expenses(user_id, date, amount, category, subcategory, note, type) VALUES (?,?,?,?,?,?,?)",
+            (user_id, date, amount, category, subcategory, note, "debit")
         )
         await c.commit()
         return {"status": "ok", "id": cur.lastrowid}
@@ -81,15 +111,16 @@ async def add_expense(date: str, amount: float, category: str, subcategory: str 
 @mcp.tool()
 async def list_expenses(start_date: str, end_date: str) -> list[dict]:
     '''List expense entries within an inclusive date range.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         cur = await c.execute(
             """
             SELECT id, date, amount, category, subcategory, note
             FROM expenses
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             ORDER BY id ASC
             """,
-            (start_date, end_date)
+            (user_id, start_date, end_date)
         )
         rows = await cur.fetchall()
         cols = [d[0] for d in cur.description]
@@ -99,16 +130,17 @@ async def list_expenses(start_date: str, end_date: str) -> list[dict]:
 @mcp.tool()
 async def summarize_expenses(start_date: Optional[str] = None, end_date: Optional[str] = None) -> dict:
     '''Summarize expenses (debits only) by category, optionally within a date range.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         base_query = """
             SELECT category, SUM(amount) as total, COUNT(*) as count
             FROM expenses
-            WHERE type = 'debit'
+            WHERE type = 'debit' AND user_id = ?
         """
-        params = []
+        params = [user_id]
         if start_date and end_date:
             base_query += " AND date BETWEEN ? AND ?"
-            params = [start_date, end_date]
+            params += [start_date, end_date]
         base_query += " GROUP BY category ORDER BY total DESC"
 
         cur = await c.execute(base_query, params)
@@ -149,6 +181,7 @@ async def edit_expense(
 ) -> dict:
     '''Edit an existing expense entry. Only the fields provided are updated;
     omitted fields keep their current value.'''
+    user_id = current_user_id()
     fields, values = [], []
     for col, val in [("date", date), ("amount", amount), ("category", category),
                      ("subcategory", subcategory), ("note", note)]:
@@ -161,7 +194,9 @@ async def edit_expense(
 
     async with aiosqlite.connect(DB_PATH) as c:
         cur = await c.execute(
-            f"UPDATE expenses SET {', '.join(fields)} WHERE id = ?", (*values, id))
+            f"UPDATE expenses SET {', '.join(fields)} WHERE id = ? AND user_id = ?",
+            (*values, id, user_id)
+        )
         await c.commit()
         if cur.rowcount == 0:
             return {"status": "error", "message": f"No expense found with id {id}."}
@@ -172,8 +207,10 @@ async def edit_expense(
 @mcp.tool()
 async def delete_expense(id: int) -> dict:
     '''Delete an expense entry by its id.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
-        cur = await c.execute("DELETE FROM expenses WHERE id = ?", (id,))
+        cur = await c.execute(
+            "DELETE FROM expenses WHERE id = ? AND user_id = ?", (id, user_id))
         await c.commit()
         if cur.rowcount == 0:
             return {"status": "error", "message": f"No expense found with id {id}."}
@@ -186,10 +223,11 @@ async def delete_expense(id: int) -> dict:
 async def credit_expense(date: str, amount: float, category: str = "Income", subcategory: str = "", note: str = "") -> dict:
     '''Record a credit (income, refund, etc.) rather than a spend.
     Stored in the same table but tagged as type='credit'.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         cur = await c.execute(
-            "INSERT INTO expenses(date, amount, category, subcategory, note, type) VALUES (?,?,?,?,?,?)",
-            (date, amount, category, subcategory, note, "credit")
+            "INSERT INTO expenses(user_id, date, amount, category, subcategory, note, type) VALUES (?,?,?,?,?,?,?)",
+            (user_id, date, amount, category, subcategory, note, "credit")
         )
         await c.commit()
         return {"status": "ok", "id": cur.lastrowid, "type": "credit"}
@@ -199,13 +237,14 @@ async def credit_expense(date: str, amount: float, category: str = "Income", sub
 async def set_budget(category: str, month: str, limit_amount: float) -> dict:
     '''Set (or update) the monthly spending limit for a category.
     month should be in 'YYYY-MM' format, e.g. '2026-09'.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         await c.execute(
             """
-            INSERT INTO budgets(category, month, limit_amount) VALUES (?,?,?)
-            ON CONFLICT(category, month) DO UPDATE SET limit_amount = excluded.limit_amount
+            INSERT INTO budgets(user_id, category, month, limit_amount) VALUES (?,?,?,?)
+            ON CONFLICT(user_id, category, month) DO UPDATE SET limit_amount = excluded.limit_amount
             """,
-            (category, month, limit_amount)
+            (user_id, category, month, limit_amount)
         )
         await c.commit()
         return {"status": "ok", "category": category, "month": month, "limit_amount": limit_amount}
@@ -215,10 +254,11 @@ async def set_budget(category: str, month: str, limit_amount: float) -> dict:
 async def get_budget_status(month: str) -> list[dict]:
     '''Check spending against budget for each category in a given month ('YYYY-MM').
     Returns limit, actual spend, remaining, and whether it's over budget.'''
+    user_id = current_user_id()
     async with aiosqlite.connect(DB_PATH) as c:
         cur = await c.execute(
-            "SELECT category, limit_amount FROM budgets WHERE month = ?", (
-                month,)
+            "SELECT category, limit_amount FROM budgets WHERE user_id = ? AND month = ?",
+            (user_id, month)
         )
         budgets = await cur.fetchall()
 
@@ -227,9 +267,9 @@ async def get_budget_status(month: str) -> list[dict]:
             spend_cur = await c.execute(
                 """
                 SELECT COALESCE(SUM(amount), 0) FROM expenses
-                WHERE category = ? AND type = 'debit' AND date LIKE ?
+                WHERE user_id = ? AND category = ? AND type = 'debit' AND date LIKE ?
                 """,
-                (category, f"{month}%")
+                (user_id, category, f"{month}%")
             )
             spent = (await spend_cur.fetchone())[0]
 
