@@ -70,9 +70,11 @@ def startup():
     init_db()
 
 
+init_db()
 # ---------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------
+
 
 class ExpenseCreate(BaseModel):
     date: str = Field(..., description="Date in YYYY-MM-DD format")
