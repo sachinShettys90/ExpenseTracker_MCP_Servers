@@ -11,6 +11,10 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "fastapi>=0.141.1",
     "fastmcp>=4.0.3",
+    "langchain-core>=1.6.3",
+    "langchain-openai>=1.6.2",
+    "langchain[mcp]>=1.4.0",
+    "mcp>=2.2.0",
     "psycopg[binary]>=3.3.5",
     "uvicorn>=0.53.0",
 ]
